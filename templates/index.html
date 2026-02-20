@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sel Erken Uyarı Sistemi</title>
+</head>
+<body>
+    <h1>Son Sensör Verileri</h1>
+    <table border="1">
+        <tr>
+            <th>Su</th>
+            <th>Toprak</th>
+            <th>Yağmur</th>
+            <th>Zaman</th>
+        </tr>
+        {% for veri in veriler %}
+        <tr>
+            <td>{{ veri.su }}</td>
+            <td>{{ veri.toprak }}</td>
+            <td>{{ veri.yagmur }}</td>
+            <td>{{ veri.tarih_saat }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
