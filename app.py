@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify, render_template
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
 from datetime import datetime
 import pytz
 import os
 
 app = Flask(__name__)
+CORS(app)
+
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///sel_verileri.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -24,35 +27,56 @@ class SensorData(db.Model):
 with app.app_context():
     db.create_all()
 
-# 🔥 ESP32 veri gönderme endpointi
-@app.route('/api/veri', methods=['POST'])
+# Veri alma endpointi
+@app.route('/api/veri', methods=['GET', 'POST'])
 def veri_al():
-    data = request.get_json()
+    if request.method == 'GET':
+        return jsonify({"mesaj": "API çalışıyor"}), 200
 
-    # JSON gelmezse form destekle (test için)
-    if not data:
-        su = float(request.form.get('su'))
-        toprak = float(request.form.get('toprak'))
-        yagmur = float(request.form.get('yagmur'))
-    else:
-        su = float(data.get('su'))
-        toprak = float(data.get('toprak'))
-        yagmur = float(data.get('yagmur'))
+    data = request.get_json(silent=True)
 
-    if su is None or toprak is None or yagmur is None:
-        return jsonify({"error": "Eksik veri"}), 400
+    try:
+        if not data:
+            su = request.form.get('su')
+            toprak = request.form.get('toprak')
+            yagmur = request.form.get('yagmur')
+        else:
+            su = data.get('su')
+            toprak = data.get('toprak')
+            yagmur = data.get('yagmur')
 
-    veri = SensorData(
-        su=su,
-        toprak=toprak,
-        yagmur=yagmur,
-        tarih_saat=datetime.now(turkey)
-    )
+        if su is None or toprak is None or yagmur is None:
+            return jsonify({"error": "Eksik veri"}), 400
 
-    db.session.add(veri)
-    db.session.commit()
+        veri = SensorData(
+            su=float(su),
+            toprak=float(toprak),
+            yagmur=float(yagmur),
+            tarih_saat=datetime.now(turkey)
+        )
 
-    return jsonify({'status': 'ok'}), 200
+        db.session.add(veri)
+        db.session.commit()
+
+        return jsonify({'status': 'ok'}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# Son veriyi getiren endpoint
+@app.route('/api/son-veri', methods=['GET'])
+def son_veri():
+    veri = SensorData.query.order_by(SensorData.tarih_saat.desc()).first()
+
+    if not veri:
+        return jsonify({"mesaj": "Henüz veri yok"}), 404
+
+    return jsonify({
+        "su": veri.su,
+        "toprak": veri.toprak,
+        "yagmur": veri.yagmur,
+        "tarih_saat": veri.tarih_saat.strftime("%d.%m.%Y %H:%M:%S")
+    })
 
 # Ana sayfa
 @app.route('/')
