@@ -2,26 +2,49 @@ import serial
 import requests
 import time
 
-# Arduino portu
-ser = serial.Serial('/dev/cu.usbserial-10', 9600)
+ser = serial.Serial('COM4', 9600, timeout=1)
 
-url = "http://127.0.0.1:5001/api/sel"
+url = "https://sel-projesi.onrender.com/api/veri"
+
+su = None
+toprak = None
+yagmur = None
 
 while True:
     try:
-        veri = ser.readline().decode().strip()
+        satir = ser.readline().decode('utf-8', errors='ignore').strip()
 
-        data = {
-            'su': veri,
-            'toprak': 0,
-            'yagmur': 0
-        }
+        if not satir:
+            continue
 
-        r = requests.post(url, data=data)
+        print("Arduino satırı:", satir)
 
-        print("Arduino verisi:", veri, "| Sunucu cevabı:", r.text)
+        if satir.startswith("SU:"):
+            su = float(satir.split(":")[1].strip())
+
+        elif satir.startswith("TOPRAK:"):
+            toprak = float(satir.split(":")[1].strip())
+
+        elif satir.startswith("YAGMUR:"):
+            yagmur = float(satir.split(":")[1].strip())
+
+        if su is not None and toprak is not None and yagmur is not None:
+            data = {
+                "su": su,
+                "toprak": toprak,
+                "yagmur": yagmur
+            }
+
+            r = requests.post(url, json=data, timeout=10)
+
+            print("Gönderilen veri:", data)
+            print("Sunucu cevabı:", r.status_code, r.text)
+
+            su = None
+            toprak = None
+            yagmur = None
 
     except Exception as e:
         print("Hata:", e)
 
-    time.sleep(5)
+    time.sleep(0.1)
